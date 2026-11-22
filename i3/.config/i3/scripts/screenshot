@@ -1,0 +1,8 @@
+#!/bin/sh
+# Region screenshot: drag to select (Esc cancels). Saved to ~/Pictures and copied to the clipboard.
+dir="$HOME/Pictures"
+mkdir -p "$dir"
+f="$dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
+maim -s -u "$f" || exit 0
+xclip -selection clipboard -t image/png -i "$f"
+notify-send -i "$f" "Screenshot saved" "Copied to clipboard"

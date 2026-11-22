@@ -1,0 +1,39 @@
+#!/bin/sh
+# Lay out every connected screen left to right in xrandr's order, each at its preferred
+# resolution and the highest refresh rate offered there. The fastest screen becomes primary.
+xrandr --query | awk '
+function maxrate(   i, r, best) {
+    best = ""
+    for (i = 2; i <= NF; i++) {
+        r = $i; gsub(/[*+]/, "", r)
+        if (r ~ /^[0-9.]+$/ && (best == "" || r + 0 > best + 0)) best = r
+    }
+    return best
+}
+function flush() {
+    if (out == "") return
+    n++; name[n] = out
+    res[n] = (mode != "") ? mode : firstmode
+    hz[n] = (mode != "") ? rate : firstrate
+    out = ""
+}
+/^[^ ]/ { flush() }
+/^[^ ]+ connected/ { out = $1; mode = ""; rate = ""; firstmode = ""; firstrate = ""; next }
+out != "" && $1 ~ /^[0-9]+x[0-9]+$/ {
+    if (firstmode == "") { firstmode = $1; firstrate = maxrate() }
+    if (mode == "" && $0 ~ /\+/) { mode = $1; rate = maxrate() }
+}
+END {
+    flush()
+    if (n == 0) exit
+    p = 1
+    for (i = 2; i <= n; i++) if (hz[i] + 0 > hz[p] + 0) p = i
+    x = 0; cmd = "xrandr"
+    for (i = 1; i <= n; i++) {
+        split(res[i], wh, "x")
+        cmd = cmd " --output " name[i] " --mode " res[i] " --rate " hz[i] " --pos " x "x0"
+        if (i == p) cmd = cmd " --primary"
+        x += wh[1]
+    }
+    print cmd
+}' | sh
